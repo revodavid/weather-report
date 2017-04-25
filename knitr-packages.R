@@ -1,0 +1,7 @@
+library("formatR")
+library("htmltools")
+library("caTools")
+library("bitops")
+library("base64enc")
+library("rprojroot")
+library("rmarkdown")

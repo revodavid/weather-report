@@ -1,0 +1,188 @@
+---
+title: "A Year in Weather"
+author: "Capacity Planning Services"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(checkpoint)
+checkpoint("2017-04-18")
+```
+
+```{r configs, echo=FALSE, include=FALSE}
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(magrittr)
+library(ggplot2)
+
+## use get-weatherData.R to create weatherHistory.Rd
+load("weatherHistory.Rd")
+
+# try: MIA JFK SEA ORD BOS ATL
+city <- "ORD"
+
+weatherHistory %>% filter(CityName==city) -> weatherHistory
+cityLongName <- as.character(weatherHistory$CityLongName[1])
+
+YEAR_MAX=max(year(weatherHistory$Date))
+YEAR_MIN=min(year(weatherHistory$Date))
+
+mins <- weatherHistory$Min_TemperatureF
+maxs <- weatherHistory$Min_TemperatureF
+coldest.all <- which.min(mins)
+hottest.all <- which.max(maxs)
+
+mins[year(weatherHistory$Date)!=YEAR_MAX] <- 99999
+maxs[year(weatherHistory$Date)!=YEAR_MAX] <- -99999
+coldest.this <- which.min(mins)
+hottest.this <- which.max(maxs)
+```
+
+# `r cityLongName`'s Weather in `r YEAR_MAX`
+
+This chart shows `r cityLongName`'s average daily temperature for each day in `r YEAR_MAX`, along with a range of observed average temperatures since `r YEAR_MIN`.
+
+The coldest observed temperature in `r YEAR_MAX` was
+`r weatherHistory$Min_TemperatureF[coldest.this]`°F on `r strftime( weatherHistory$Date[coldest.this], format="%B %d")`.
+
+The hottest observed temperature in `r YEAR_MAX` was
+`r weatherHistory$Max_TemperatureF[hottest.this]`°F on `r strftime( weatherHistory$Date[hottest.this], format="%B %d")`.
+
+```{r dataprep, echo=FALSE}
+## based on original code by Alex Bresler
+## https://gist.github.com/abresler/46c36c1a88c849b94b07
+
+## convert to weatherHistory to "data" format for plotting
+dt <- as.POSIXlt(weatherHistory$Date)
+data <- data.frame(
+                   day = dt$mday,
+                   month = dt$mon+1,
+                   year = dt$year + 1900,
+                   temp = weatherHistory$Mean_TemperatureF)
+## add "newday": days since Jan 1 of year
+## Feb 29 is skipped in non-leap years (newday goes from 59 to 61)
+dom <- c(31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+cumdom <- cumsum(c(0, dom[1:11]))
+data$newday <- cumdom[data$month]+data$day
+
+yearStart <- min(data$year)
+yearEnd <- max(data$year)
+
+## 366 days of historical daily minima, maxima, and average temps
+past <- data %>%
+    filter(year!=yearEnd) %>%
+    group_by(newday) %>%
+    summarise(count = n(),  
+          lower = min(temp),
+          upper = max(temp),
+          avg = mean(temp),
+          se = sd(temp) / sqrt(length(temp))) %>% 
+          mutate(avg_upper = avg + (2.101 * se), # calculate 95% CI for mean
+                 avg_lower = avg - (2.101 * se)) # calculate 95% CI for mean          
+
+## current year data
+data %>%
+     filter(year == yearEnd) -> present # filter out missing data & select current year data
+
+dgr_fmt <- function(x, ...) {
+    parse(text = paste(x, "*degree", sep = ""))
+}
+
+# create y-axis variable
+a <- dgr_fmt(seq(-10, 100, by = 10))
+```
+
+```{r plot, fig.width=9, fig.height=5, echo=FALSE, warning=FALSE}
+## construct plot object p
+p <- ggplot(past, aes(newday, avg)) +
+    theme(plot.background = element_blank(),
+                panel.grid.minor = element_blank(),
+                panel.grid.major = element_blank(),
+                panel.border = element_blank(),
+                panel.background = element_blank(),
+                axis.ticks = element_blank(),
+                axis.title = element_blank()) +
+    geom_linerange(past, mapping = aes(x = newday, ymin = lower, ymax = upper), colour = "wheat2")
+
+#p
+#Next, we can add the data that represents the 95% confidence interval around the daily mean temperatures for 1975-2013.
+p <- p +
+    geom_linerange(past, mapping = aes(x = newday, ymin = avg_lower, ymax = avg_upper), colour = "wheat4")
+#p
+
+p <- p +
+    geom_line(present, mapping = aes(x = newday, y = temp, group = 1)) +
+    geom_vline(xintercept = 0, colour = "wheat3", linetype = 1, size = 1)
+
+#p
+
+# white horizontal gridlines
+p <- p + geom_hline(yintercept = -10, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 0, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 10, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 20, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 30, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 40, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 50, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 60, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 70, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 80, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 90, colour = "white", linetype = 1) +
+    geom_hline(yintercept = 100, colour = "white", linetype = 1)
+
+# monthly vertical gridlines
+p <- p +
+    geom_vline(xintercept = 31, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 59, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 90, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 120, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 151, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 181, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 212, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 243, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 273, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 304, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 334, colour = "wheat3", linetype = 3, size = .5) +
+    geom_vline(xintercept = 365, colour = "wheat3", linetype = 3, size = .5)
+
+# month labels
+p <- p +
+    coord_cartesian(ylim = c(-10, 100)) +
+    scale_y_continuous(breaks = seq(-10, 100, by = 10), labels = a) +
+    scale_x_continuous(expand = c(0, 0),
+                                         breaks = c(15, 45, 75, 105, 135, 165, 195, 228, 258, 288, 320, 350),
+                                         labels = c("January", "February", "March", "April",
+                                                         "May", "June", "July", "August", "September",
+                                                         "October", "November", "December"))
+
+p <- p +
+    ggtitle(paste(cityLongName,"'s Weather in ", yearEnd," (degrees Fahrenheit)",sep="")) +
+    theme(plot.title = element_text(face = "bold", hjust = .012, vjust = .8, colour = "#3C3C3C", size = 20)) 
+
+
+present %>% filter(newday %in% c(180:185)) %>% select(x = newday, y = temp) %>% data.frame -> legend_data
+legend_data$y <- legend_data$y - mean(legend_data$y) + 15 
+normalLabel <- paste(yearEnd, "TEMPERATURE")
+maxlabel <- paste("RECORD HIGH SINCE", yearStart)
+minlabel <- paste("RECORD LOW SINCE", yearStart)
+
+p <- p +
+    annotate("segment", x = 182, xend = 182, y = 5, yend = 25, colour = "wheat2", size = 3) +
+    annotate("segment", x = 182, xend = 182, y = 12, yend = 18, colour = "wheat4", size = 3) +
+    geom_line(data = legend_data, aes(x = x, y = y)) +
+    annotate("segment", x = 184, xend = 186, y = 17.7, yend = 17.7, colour = "wheat4", size = .5) +
+    annotate("segment", x = 184, xend = 186, y = 12.2, yend = 12.2, colour = "wheat4", size = .5) +
+    annotate("segment", x = 185, xend = 185, y = 12.2, yend = 17.7, colour = "wheat4", size = .5) +
+    annotate("text", x = 190, y = 14.75, hjust=0, label = "NORMAL RANGE", size = 2, colour = "gray30") +
+    annotate("text", x = 175, y = 14.75, hjust=1, label = normalLabel, size = 2, colour = "gray30") +
+    annotate("text", x = 190, y = 25, hjust = 0, label = maxlabel, size = 2, colour = "gray30") +
+    annotate("text", x = 190, y = 5, hjust = 0, label = minlabel, size = 2, colour = "gray30")
+
+print(p)
+## Exported as an SVG of 1200 width and 525 height
+```
+
+
+
