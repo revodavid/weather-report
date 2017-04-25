@@ -1,6 +1,6 @@
 ## Download weather data using the weatherData package
 library(checkpoint)
-checkpoint("2017-04-18")
+checkpoint("2017-04-25", use.knitr=TRUE)
 
 library(weatherData)
 
@@ -8,10 +8,10 @@ library(weatherData)
 #checkDataAvailability("ATL","2004-01-01")
 #cities <- c("MIA")
 
-cities <- c("MIA", "JFK","SEA","ORD","BOS","ATL")
-cityLongNames <- c("Miami","New York City", "Seattle","Chicago","Boston","Atlanta")
-yearStarts <- c(2001,1990, 2005,2001,2001,2001)
-yearEnds <- c(2016,2016, 2016,2016,2016,2016)
+cities <- c("JFK","SEA","ORD","BOS","ATL")
+cityLongNames <- c("New York City", "Seattle","Chicago","Boston","Atlanta")
+yearStarts <- c(1990, 2005,2001,2001,2001)
+yearEnds <- c(2016, 2016,2016,2016,2016)
 
 
 #cities <- c("ORD","BOS","SEA","ATL")

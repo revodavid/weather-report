@@ -7,7 +7,7 @@ output: word_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(checkpoint)
-checkpoint("2017-04-18")
+checkpoint("2017-04-25", use.knitr=TRUE)
 ```
 
 ```{r configs, echo=FALSE, include=FALSE}
