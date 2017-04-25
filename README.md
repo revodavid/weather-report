@@ -4,6 +4,7 @@ This is an example R Markdown notebook showing how to use the [`checkpoint` pack
 
 ## Create a weather report
 
+
 First, run the script `download-weather-data.R`. This will download historical weather data for New York City (NYC), Chicago (ORD), Boston (BOS),
 Seattle (SEA) and Alanta (ATL), and saves the data as an R object in `weatherHistory.Rd`. You can configure the script to download data for different cities, if you like. The download process can take several minutes.
 
